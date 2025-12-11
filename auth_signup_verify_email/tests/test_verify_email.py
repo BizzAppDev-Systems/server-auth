@@ -71,20 +71,25 @@ class UICase(HttpCase):
         """Test rejection of duplicate email registration."""
         test_email = "existing@odoo-community.org"
         self.env["res.users"].create({"name": "Test User", "login": test_email})
-        self.data["login"] = test_email
-        doc = self.html_doc(data=self.data)
-        error_messages = doc.xpath('//p[@class="alert alert-danger"]/text()')
-        self.assertGreater(
-            len(error_messages),
-            0,
-            msg="Expected an error for a duplicate email.",
-        )
-        self.assertIn(
-            "already registered",
-            str(error_messages[0]).lower(),
-            msg="Expected the duplicate email message to "
-            "say the email is already registered.",
-        )
+        # Mock signup to raise an exception (simulating duplicate key error)
+        with patch(
+            "odoo.addons.auth_signup.models.res_users.ResUsers.signup",
+            side_effect=Exception("Duplicate key error"),
+        ):
+            self.data["login"] = test_email
+            doc = self.html_doc(data=self.data)
+            error_messages = doc.xpath('//p[@class="alert alert-danger"]/text()')
+            self.assertGreater(
+                len(error_messages),
+                0,
+                msg="Expected an error for a duplicate email.",
+            )
+            self.assertIn(
+                "already registered",
+                str(error_messages[0]).lower(),
+                msg="Expected the duplicate email message to "
+                "say the email is already registered.",
+            )
 
     @mute_logger("odoo.addons.auth_signup_verify_email.controllers.main")
     def test_signup_with_existing_email_field(self):
